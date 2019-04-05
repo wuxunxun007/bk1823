@@ -1,0 +1,276 @@
+1、创建项目
+  假设电脑中没有安装create-react-app脚手架时，通过如下命令创建项目
+  npx在安装node时，会自带的
+    npx create-react-app myapp
+  如果有create-react-app脚手架，用如下命令
+    create-react-app myapp
+2、抽离配置文件
+  默认情况下配置文件在react-scripts模块内部，而它又在node_modules内部
+  npm run eject
+
+3、让你的react拥有@，就像vue一样
+  config/webpack.config.js
+    resolve: {  -----  vue版
+      extensions: ['.js', '.vue', '.json'], // 代表的就是导入文件是可以省略的后缀名
+      alias: { // 别名
+        'vue$': 'vue/dist/vue.esm.js',
+        '@': resolve('src'), 
+      }
+    },
+  在本案例中，268行添加如下代码
+  '@': path.join(__dirname, '../', 'src')
+4、修改项目的目录结构
+  src
+    api ---- 请求数据用的
+    componens --- 页面用到的组件
+    layout ---- 布局
+    lib ---- scss 库
+    pages   ----  页面
+    router --- 路由组件
+    store --- 状态管理器
+    index.js ----  入口文件
+    serviceWorker.js
+5、设置路由   路由---》布局---》页面---》组件
+  npm i react-router-dom -S
+  npm i node-sass sass-loader -D
+  5.1 分析页面得知，3中页面结构
+    layout/App.js  ---- 首页、分类、购物车、我的
+    layout/UserApp.js ---- 登录、注册
+    layout/DetailApp.js ---- 详情
+  5.2 給App.js添加页面 ---- 重定向
+    <div className = "container">
+      <Switch>
+        <Route path = "/home" component = { Home } />
+        <Route path = "/kind" component = { Kind } />
+        <Route path = "/cart" component = { Cart } />
+        <Route path = "/user" component = { User } />
+        <Redirect to = { { pathname: '/home'} } />
+      </Switch>
+      <footer className = "footer">
+        <NavLink to = "/home" >首页</NavLink>
+        <NavLink to = "/kind" >分类</NavLink>
+        <NavLink to = "/cart" >购物车</NavLink>
+        <NavLink to = "/user" >我的</NavLink>
+      </footer>
+    </div>
+  5.3 給UserApp.js添加页面
+    <div className = "container">
+      <Switch>
+        <Route path = "/userapp/login" component = { Login } />
+        <Route path = "/userapp/register" component = { Register } />
+      </Switch>
+    </div>
+  5.4 給DetailApp.js添加页面 ---- 万一有多个详情页面，作用就会很大
+    <Switch>
+      <Route path = "/detailapp/detail" component = { Detail } />
+    </Switch>
+  5.5 布局各个页面 ---- 尽量使用scss库，但不是必须
+  5.6 封装UI库  --- components/common/Back.js
+6、使用UI库
+  6.1 安装依赖
+    PC： npm i antd element-ui -S
+    移动： npm i antd-mobile -S             ************************
+  6.2 public/index.html文件处导入兼容性的文件
+    // 引入 FastClick 解决移动端双击放大 --- 点击穿透、300ms的延时
+    // 引入 Promise 的 fallback 支持 (部分安卓手机不支持 Promise)
+      <script src="https://as.alipayobjects.com/g/component/fastclick/1.0.6/fastclick.js"></script>
+      <script>
+        if ('addEventListener' in document) {
+          document.addEventListener('DOMContentLoaded', function() {
+            FastClick.attach(document.body);
+          }, false);
+        }
+        if(!window.Promise) {
+          document.writeln('<script src="https://as.alipayobjects.com/g/component/es6-promise/3.2.2/es6-promise.min.js"'+'>'+'<'+'/'+'script>');
+        }
+      </script>
+  6.3 按需引入
+    cnpm i babel-plugin-import -D
+    修改配置文件 config/webpack.config.js
+    在375-377行放入如下代码
+    "plugins": [
+      ["import", { libraryName: "antd-mobile", style: "css" }] // `style: true` 会加载 less 文件
+    ],
+  6.4 重启项目
+7、数据请求
+  npm i axios -S
+  npm i redux react-redux redux-thunk -S
+  // redux ----状态管理器
+  // react-redux --- 高阶组件---辅助
+  // redux-thunk --- 操作异步
+
+  创建文件夹store
+    路由---》布局--》页面---》组价
+                      |
+                      |
+                    状态管理
+    状态应该分开管理，方便后期的开发和维护
+  创建各个页面的状态管理器，
+    store
+      home.js
+      kind.js
+      cart.js
+      user.js
+      index.js -------- 整合各个页面的状态管理
+    以首页为例
+      ①、const reducer = () => {} 
+      export default reducer
+      ②、const reducer = (state={}, action) => {}
+      ③、const reducer = (state={
+        homebannerlistdata: [],
+        homeprolistdata: []
+      }) => {}
+      ④、const reducer = (state={
+        homebannerlistdata: [],
+        homeprolistdata: []
+      }) => {
+        const { type, data } = action;
+        switch (type) {
+          case "CHANGE_HOME_BANNER_LIST_DATA"：
+            const homebannerlistdata = { homebannerlistdata: data };
+            return { ...state, ...homebannerlistdata };
+           case "CHANGE_HOME_PRO_LIST_DATA"：
+            const homeprolistdata = { homeprolistdata: data };
+            return { ...state, ...homeprolistdata };
+          default:
+            return state;
+        }
+      }
+    在store/index.js处整合各个reducer
+      代码查看文件
+    
+    在哪里使用仓库 ---------- 入口文件 src/index.js  ---- react-redux
+      import store from '@/store';
+      import { Provider } from 'react-redux';
+
+      ReactDOM.render(
+        <Provider store = { store }>
+          <RouterCom />
+        </Provider>
+        , document.getElementById('root'));
+
+    在页面中使用状态管理，以首页为例
+      // 使用react-redux可以将组件分为容器组件和UI组件
+      // 容器组件不负责渲染数据，只负责业务逻辑
+      // UI组件不负责业务逻辑，只负责渲染数据
+      src/pages/home
+        UI.js
+          import React, { Component } from 'react';
+          export default class extends Component {
+
+            render () {
+              return (
+                <div className = "box">
+                    <header className="header">首页头部111</header>
+                    <div className = "content">
+                      首页内容111
+                    </div>
+                  </div>
+              )
+            }
+          }
+        index.js
+          ①、先看到UI页面生成的容器组件
+              import { connect } from 'react-redux';
+              import UI from './UI';
+              const Com = connect()(UI);
+              export default Com;
+          ②、容器组件需要给UI组件提供数据 mapStateToProps
+            容器组件需要负责提供UI组件需要的业务逻辑 mapDispatchToProps
+
+            const Com = connect(mapStateToProps, mapDispatchToProps)(UI);
+          ③、实现mapStateToProps和mapDispatchToProps
+            // 这里的state代表的全部页面的state， 可以通过state.home获取首页的状态
+            const mapStateToProps = (state) => {
+              return {
+                homebannerlistdata: state.home.homebannerlistdata,
+                homeprolistdata: state.home.homeprolistdata
+              }
+            }
+
+            // 处理UI组件的业务逻辑
+            const mapDispatchToProps = () => {
+              return {
+                requestHomeBannerListData () {
+                  console.log('请求banner数据')
+                },
+                requestHomeProListData () {
+                  console.log('请求pro数据')
+                }
+              }
+            }
+          ④、UI组件使用状态或者触发容器组件的逻辑
+            通过this.props既可完成
+              this.props.requestHomeBannerListData();
+
+              { this.props.homebannerlistdata }
+8、容器组件内部实现异步请求数据，以首页为例
+  src/pages/home
+    action.js
+    index.js
+    UI.js
+  
+  action.js中create需要的action --- 必须掌握
+    module.exports = {
+      requestHomeBannerListData () {
+        return function (dispatch) {
+          // 异步操作
+          // 操作完成使用dispatch触发相应reducer中的改变数据的方法 store/home.js
+        }
+      },
+      requestHomeProListData () {
+        return function (dispatch) {
+          
+        }
+      }
+    }
+    还可以简写为 ---- 最好掌握
+    module.exports = {
+      requestHomeBannerListData: () => (dispatch) => {
+        axios.get('https://www.daxunxun.com/banner')
+          .then(data => {
+            console.log(data.data)
+            dispatch({
+              type: 'CHANGE_HOME_BANNER_LIST_DATA',
+              data: data.data
+            })
+          })
+      }
+    }
+
+  UI组件处渲染数据即可
+9、将action中的数据请求独立出去交给api
+  api/index.js
+    import axios from 'axios';
+    const baseUrl = "https://www.daxunxun.com/"
+    export default {
+      request (url) {
+        return new Promise((resolve, reject) => {
+          axios.get(baseUrl + url)
+            .then(data => {
+              resolve(data.data)
+            })
+        })
+      }
+    }
+  pages/home/action.js
+      import api from '@/api';
+
+      export default {
+        requestHomeBannerListData: () => (dispatch) => {
+          api.request('banner').then(data => {
+              dispatch({
+                type: 'CHANGE_HOME_BANNER_LIST_DATA',
+                data
+              })
+          }) 
+        },
+        requestHomeProListData: () => (dispatch) => {
+          api.request('douban').then(data => {
+            dispatch({
+              type: 'CHANGE_HOME_PRO_LIST_DATA',
+              data
+            })
+        }) 
+        }
+      }
